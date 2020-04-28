@@ -76,7 +76,7 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Resource:
-                  - !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
+                  - !Sub 'arn:aws:s3:::${ArtifactBucket.Arn}/*'
                 Effect: Allow
                 Action:
                   - s3:PutObject
@@ -164,6 +164,7 @@ Resources:
             Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}'
       Name: !Ref 'AWS::StackName'
       ServiceRole: !Ref 'CodeBuildServiceRole'
+      EncryptionKey: !Ref 'KmsKeyId'
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
