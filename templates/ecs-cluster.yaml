@@ -1,7 +1,4 @@
----
 AWSTemplateFormatVersion: 2010-09-09
-
-
 Parameters:
   LaunchType:
     Type: String
@@ -9,29 +6,22 @@ Parameters:
     AllowedValues:
       - Fargate
       - EC2
-
   InstanceType:
     Type: String
     Default: t2.micro
-
   ClusterSize:
     Type: Number
     Default: 2
-
-  Subnets:
+  PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
-
   SourceSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
-
   VpcId:
     Type: AWS::EC2::VPC::Id
-
-
 Conditions:
-  EC2: !Equals [ !Ref LaunchType, "EC2" ]
-
-
+  EC2: !Equals
+    - !Ref 'LaunchType'
+    - EC2
 Mappings:
   AWSRegionToAMI:
     ap-south-1:
@@ -64,8 +54,6 @@ Mappings:
       AMI: ami-74262414
     us-west-2:
       AMI: ami-decc7fa6
-
-
 Resources:
   ECSRole:
     Type: AWS::IAM::Role
@@ -80,42 +68,38 @@ Resources:
               Service: ec2.amazonaws.com
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
-
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Condition: EC2
     Properties:
       Path: /
       Roles:
-        - !Ref ECSRole
-
+        - !Ref 'ECSRole'
   SecurityGroup:
-    Type: "AWS::EC2::SecurityGroup"
+    Type: AWS::EC2::SecurityGroup
     Condition: EC2
     Properties:
-      GroupDescription: !Sub ${AWS::StackName}-hosts
+      GroupDescription: !Sub '${AWS::StackName}-hosts'
       SecurityGroupIngress:
-        - SourceSecurityGroupId: !Ref SourceSecurityGroup
-          IpProtocol: -1
-      VpcId: !Ref VpcId
-
+        - SourceSecurityGroupId: !Ref 'SourceSecurityGroup'
+          IpProtocol: '-1'
+      VpcId: !Ref 'VpcId'
   Cluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: !Ref AWS::StackName
-
+      ClusterName: !Ref 'AWS::StackName'
   AutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Condition: EC2
     Properties:
-      VPCZoneIdentifier: !Ref Subnets
-      LaunchConfigurationName: !Ref LaunchConfiguration
-      MinSize: !Ref ClusterSize
-      MaxSize: !Ref ClusterSize
-      DesiredCapacity: !Ref ClusterSize
-      Tags: 
+      VPCZoneIdentifier: !Ref 'PrivateSubnets'
+      LaunchConfigurationName: !Ref 'LaunchConfiguration'
+      MinSize: !Ref 'ClusterSize'
+      MaxSize: !Ref 'ClusterSize'
+      DesiredCapacity: !Ref 'ClusterSize'
+      Tags:
         - Key: Name
-          Value: !Sub ${AWS::StackName} - ECS Host
+          Value: !Sub '${AWS::StackName} - ECS Host'
           PropagateAtLaunch: true
     CreationPolicy:
       ResourceSignal:
@@ -126,7 +110,6 @@ Resources:
         MaxBatchSize: 1
         PauseTime: PT15M
         WaitOnResourceSignals: true
-
   LaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Condition: EC2
@@ -135,17 +118,17 @@ Resources:
         config:
           commands:
             01_add_instance_to_cluster:
-                command: !Sub echo ECS_CLUSTER=${Cluster} > /etc/ecs/ecs.config
+              command: !Sub 'echo ECS_CLUSTER=${Cluster} > /etc/ecs/ecs.config'
           files:
-            "/etc/cfn/cfn-hup.conf":
-              mode: 000400
+            /etc/cfn/cfn-hup.conf:
+              mode: 256
               owner: root
               group: root
               content: !Sub |
                 [main]
                 stack=${AWS::StackId}
                 region=${AWS::Region}
-            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
               content: !Sub |
                 [cfn-auto-reloader-hook]
                 triggers=post.update
@@ -160,19 +143,20 @@ Resources:
                   - /etc/cfn/cfn-hup.conf
                   - /etc/cfn/hooks.d/cfn-auto-reloader.conf
     Properties:
-      ImageId: !FindInMap [ AWSRegionToAMI, !Ref "AWS::Region", AMI ]
-      InstanceType: !Ref InstanceType
-      IamInstanceProfile: !Ref InstanceProfile
+      ImageId: !FindInMap
+        - AWSRegionToAMI
+        - !Ref 'AWS::Region'
+        - AMI
+      InstanceType: !Ref 'InstanceType'
+      IamInstanceProfile: !Ref 'InstanceProfile'
       SecurityGroups:
-        - !Ref SecurityGroup
-      UserData:
-        "Fn::Base64": !Sub |
+        - !Ref 'SecurityGroup'
+      UserData: !Base64
+        Fn::Sub: |
           #!/bin/bash
           yum install -y aws-cfn-bootstrap
           /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
           /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
-
-
 Outputs:
   ClusterName:
-      Value: !Ref Cluster
+    Value: !Ref 'Cluster'
