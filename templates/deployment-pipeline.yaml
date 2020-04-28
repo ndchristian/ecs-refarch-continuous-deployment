@@ -13,6 +13,8 @@ Parameters:
     Type: String
   Service:
     Type: String
+  KmsKeyId:
+    Type: String
 Resources:
   Repository:
     Type: AWS::ECR::Repository
@@ -97,6 +99,36 @@ Resources:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID: !Ref 'KmsKeyId'
+              SSEAlgorithm: aws:kms
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref 'ArtifactBucket'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Id: SSEAndSSLPolicy
+        Statement:
+        - Sid: DenyUnEncryptedObjectUploads
+          Effect: Deny
+          Principal: "*"
+          Action: s3:PutObject
+          Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
+          Condition:
+            StringNotEquals:
+              s3:x-amz-server-side-encryption: aws:kms
+        - Sid: DenyInsecureConnections
+          Effect: Deny
+          Principal: "*"
+          Action: s3:*
+          Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
+          Condition:
+            Bool:
+              aws:SecureTransport: false
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
