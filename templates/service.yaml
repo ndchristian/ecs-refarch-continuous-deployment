@@ -1,39 +1,30 @@
----
 AWSTemplateFormatVersion: 2010-09-09
-
-
 Parameters:
   Cluster:
     Type: String
-
   DesiredCount:
     Type: Number
     Default: 1
-
   LaunchType:
     Type: String
     Default: Fargate
     AllowedValues:
       - Fargate
       - EC2
-
   TargetGroup:
     Type: String
-
   SourceSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
-
   Subnets:
     Type: List<AWS::EC2::Subnet::Id>
-
-
 Conditions:
-  Fargate: !Equals [ !Ref LaunchType, "Fargate" ]
-
-  EC2: !Equals [ !Ref LaunchType, "EC2" ]
-
-
-Resources:
+  Fargate: !Equals
+    - !Ref 'LaunchType'
+    - Fargate
+  EC2: !Equals
+    - !Ref 'LaunchType'
+    - EC2
+Resources:  
   TaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -47,54 +38,56 @@ Resources:
               Service: ecs-tasks.amazonaws.com
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
-
   LogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /ecs/${AWS::StackName}
-
+      LogGroupName: !Sub '/ecs/${AWS::StackName}'
   FargateService:
     Type: AWS::ECS::Service
     Condition: Fargate
     Properties:
-      Cluster: !Ref Cluster
-      DesiredCount: !Ref DesiredCount
-      TaskDefinition: !Ref TaskDefinition
+      Cluster: !Ref 'Cluster'
+      DesiredCount: !Ref 'DesiredCount'
+      TaskDefinition: !Ref 'TaskDefinition'
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
           AssignPublicIp: ENABLED
           SecurityGroups:
-            - !Ref SourceSecurityGroup
-          Subnets: !Ref Subnets
+            - !Ref 'SourceSecurityGroup'
+          Subnets: !Ref 'Subnets'
       LoadBalancers:
         - ContainerName: simple-app
           ContainerPort: 80
-          TargetGroupArn: !Ref TargetGroup
-
+          TargetGroupArn: !Ref 'TargetGroup'
   EC2Service:
     Type: AWS::ECS::Service
     Condition: EC2
     Properties:
-      Cluster: !Ref Cluster
-      DesiredCount: !Ref DesiredCount
-      TaskDefinition: !Ref TaskDefinition
+      Cluster: !Ref 'Cluster'
+      DesiredCount: !Ref 'DesiredCount'
+      TaskDefinition: !Ref 'TaskDefinition'
       LaunchType: EC2
       LoadBalancers:
         - ContainerName: simple-app
           ContainerPort: 80
-          TargetGroupArn: !Ref TargetGroup
-
+          TargetGroupArn: !Ref 'TargetGroup'
   TaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: !Sub ${AWS::StackName}-simple-app
+      Family: !Sub '${AWS::StackName}-simple-app'
       RequiresCompatibilities:
-        - !If [ Fargate, "FARGATE", "EC2" ]
-      Memory: 512
-      Cpu: 256
-      NetworkMode: !If [ Fargate, "awsvpc", "bridge" ]
-      ExecutionRoleArn: !Ref TaskExecutionRole
+        - !If
+          - Fargate
+          - FARGATE
+          - EC2
+      Memory: '512'
+      Cpu: '256'
+      NetworkMode: !If
+        - Fargate
+        - awsvpc
+        - bridge
+      ExecutionRoleArn: !GetAtt 'TaskExecutionRole.Arn'
       ContainerDefinitions:
         - Name: simple-app
           Image: amazon/amazon-ecs-sample
@@ -112,9 +105,9 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-region: !Ref AWS::Region
-              awslogs-group: !Ref LogGroup
-              awslogs-stream-prefix: !Ref AWS::StackName
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-group: !Ref 'LogGroup'
+              awslogs-stream-prefix: !Ref 'AWS::StackName'
         - Name: busybox
           Image: busybox
           EntryPoint:
@@ -125,11 +118,13 @@ Resources:
           VolumesFrom:
             - SourceContainer: simple-app
           Command:
-            - /bin/sh -c "while true; do /bin/date > /var/www/my-vol/date; sleep 1; done"
+            - /bin/sh -c "while true; do /bin/date > /var/www/my-vol/date; sleep 1;
+              done"
       Volumes:
         - Name: my-vol
-
-
 Outputs:
   Service:
-    Value: !If [ Fargate, !Ref FargateService, !Ref EC2Service ]
+    Value: !If
+      - Fargate
+      - !Ref 'FargateService'
+      - !Ref 'EC2Service'

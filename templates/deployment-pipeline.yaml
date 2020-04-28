@@ -1,33 +1,23 @@
----
 AWSTemplateFormatVersion: 2010-09-09
-
-
 Parameters:
   GitHubRepo:
     Type: String
-
   GitHubBranch:
     Type: String
-
   GitHubToken:
     Type: String
     NoEcho: true
-
   GitHubUser:
     Type: String
-
   Cluster:
     Type: String
-
   Service:
     Type: String
-
-
 Resources:
   Repository:
     Type: AWS::ECR::Repository
     DeletionPolicy: Retain
-
+    UpdateReplacePolicy: Retain
   CodeBuildServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -44,20 +34,20 @@ Resources:
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              - Resource: "*"
+              - Resource: '*'
                 Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - ecr:GetAuthorizationToken
-              - Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+              - Resource: !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
                 Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:GetObjectVersion
-              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
+              - Resource: !Sub 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}'
                 Effect: Allow
                 Action:
                   - ecr:GetDownloadUrlForLayer
@@ -67,7 +57,6 @@ Resources:
                   - ecr:InitiateLayerUpload
                   - ecr:UploadLayerPart
                   - ecr:CompleteLayerUpload
-
   CodePipelineServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -85,14 +74,14 @@ Resources:
             Version: 2012-10-17
             Statement:
               - Resource:
-                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                  - !Sub 'arn:aws:s3:::${ArtifactBucket}/*'
                 Effect: Allow
                 Action:
                   - s3:PutObject
                   - s3:GetObject
                   - s3:GetObjectVersion
                   - s3:GetBucketVersioning
-              - Resource: "*"
+              - Resource: '*'
                 Effect: Allow
                 Action:
                   - ecs:DescribeServices
@@ -104,11 +93,10 @@ Resources:
                   - codebuild:StartBuild
                   - codebuild:BatchGetBuilds
                   - iam:PassRole
-
   ArtifactBucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Retain
-
+    UpdateReplacePolicy: Retain
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -139,19 +127,18 @@ Resources:
         Type: LINUX_CONTAINER
         EnvironmentVariables:
           - Name: AWS_DEFAULT_REGION
-            Value: !Ref AWS::Region
+            Value: !Ref 'AWS::Region'
           - Name: REPOSITORY_URI
-            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
-      Name: !Ref AWS::StackName
-      ServiceRole: !Ref CodeBuildServiceRole
-
+            Value: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}'
+      Name: !Ref 'AWS::StackName'
+      ServiceRole: !Ref 'CodeBuildServiceRole'
   Pipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
-      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      RoleArn: !GetAtt 'CodePipelineServiceRole.Arn'
       ArtifactStore:
         Type: S3
-        Location: !Ref ArtifactBucket
+        Location: !Ref 'ArtifactBucket'
       Stages:
         - Name: Source
           Actions:
@@ -159,13 +146,13 @@ Resources:
               ActionTypeId:
                 Category: Source
                 Owner: ThirdParty
-                Version: 1
+                Version: '1'
                 Provider: GitHub
               Configuration:
-                Owner: !Ref GitHubUser
-                Repo: !Ref GitHubRepo
-                Branch: !Ref GitHubBranch
-                OAuthToken: !Ref GitHubToken
+                Owner: !Ref 'GitHubUser'
+                Repo: !Ref 'GitHubRepo'
+                Branch: !Ref 'GitHubBranch'
+                OAuthToken: !Ref 'GitHubToken'
               OutputArtifacts:
                 - Name: App
               RunOrder: 1
@@ -175,10 +162,10 @@ Resources:
               ActionTypeId:
                 Category: Build
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: CodeBuild
               Configuration:
-                ProjectName: !Ref CodeBuildProject
+                ProjectName: !Ref 'CodeBuildProject'
               InputArtifacts:
                 - Name: App
               OutputArtifacts:
@@ -190,17 +177,15 @@ Resources:
               ActionTypeId:
                 Category: Deploy
                 Owner: AWS
-                Version: 1
+                Version: '1'
                 Provider: ECS
               Configuration:
-                ClusterName: !Ref Cluster
-                ServiceName: !Ref Service
+                ClusterName: !Ref 'Cluster'
+                ServiceName: !Ref 'Service'
                 FileName: images.json
               InputArtifacts:
                 - Name: BuildOutput
               RunOrder: 1
-
-
 Outputs:
   PipelineUrl:
-    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
+    Value: !Sub 'https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}'
