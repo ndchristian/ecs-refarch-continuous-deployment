@@ -6,7 +6,7 @@ Parameters:
     AllowedValues:
       - Fargate
       - EC2
-  Subnets:
+  PublicSubnets:
     Type: List<AWS::EC2::Subnet::Id>
   VpcId:
     Type: String
@@ -28,7 +28,7 @@ Resources:
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-      Subnets: !Ref 'Subnets'
+      Subnets: !Ref 'PublicSubnets'
       SecurityGroups:
         - !Ref 'SecurityGroup'
   LoadBalancerListener:

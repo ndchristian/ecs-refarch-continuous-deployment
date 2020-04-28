@@ -12,7 +12,7 @@ Parameters:
   ClusterSize:
     Type: Number
     Default: 2
-  Subnets:
+  PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
   SourceSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
@@ -92,7 +92,7 @@ Resources:
     Type: AWS::AutoScaling::AutoScalingGroup
     Condition: EC2
     Properties:
-      VPCZoneIdentifier: !Ref 'Subnets'
+      VPCZoneIdentifier: !Ref 'PrivateSubnets'
       LaunchConfigurationName: !Ref 'LaunchConfiguration'
       MinSize: !Ref 'ClusterSize'
       MaxSize: !Ref 'ClusterSize'

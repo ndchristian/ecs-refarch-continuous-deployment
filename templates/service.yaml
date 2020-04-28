@@ -15,7 +15,7 @@ Parameters:
     Type: String
   SourceSecurityGroup:
     Type: AWS::EC2::SecurityGroup::Id
-  Subnets:
+  PrivateSubnets:
     Type: List<AWS::EC2::Subnet::Id>
 Conditions:
   Fargate: !Equals
@@ -52,10 +52,9 @@ Resources:
       LaunchType: FARGATE
       NetworkConfiguration:
         AwsvpcConfiguration:
-          AssignPublicIp: ENABLED
           SecurityGroups:
             - !Ref 'SourceSecurityGroup'
-          Subnets: !Ref 'Subnets'
+          Subnets: !Ref 'PrivateSubnets'
       LoadBalancers:
         - ContainerName: simple-app
           ContainerPort: 80
